@@ -2,7 +2,7 @@ NAME=woody
 CC=clang
 CFLAGS=-Wall -Wextra -Werror
 
-SRCS_FILES=main.c
+SRCS_FILES=main.c get_file.c check_file.c woody.c
 OBJS_FILES=$(SRCS_FILES:.c=.o)
 
 SRCS_DIR=srcs/
