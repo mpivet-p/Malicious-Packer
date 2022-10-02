@@ -1,2 +1,5 @@
 *.o
 **.o
+woody
+test
+payload
