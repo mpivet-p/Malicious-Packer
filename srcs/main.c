@@ -70,24 +70,38 @@ int		get_shstrtab_content(int fd, Elf64_Ehdr *ehdr, char **ptr)
 	(*ptr)[ret] = 0;
 	return (0);
 }
-int		is_pt_load(int fd, Elf64_Ehdr *ehdr, uint64_t offset)
+
+int		is_pt_load(int fd, Elf64_Ehdr *ehdr, uint64_t offset, uint64_t size)
 {
 	Elf64_Phdr	phdr;
-	int			f_offset;
 
-	f_offset = lseek(fd, 0, SEEK_CUR);
 	lseek(fd, ehdr->e_phoff, SEEK_SET);
 	for (int i = 0; i < ehdr->e_phnum; i++)
 	{
 		handle_read_return(read(fd, &phdr, sizeof(phdr)));
 		if (offset >= phdr.p_offset
-			&& offset < (phdr.p_offset + phdr.p_filesz))
+			&& (offset + size) < (phdr.p_offset + phdr.p_filesz))
 		{
-			lseek(fd, f_offset, SEEK_SET);
-			return (1);
+			return (phdr.p_type == PT_LOAD);
 		}
 	}
-	lseek(fd, f_offset, SEEK_SET);
+	return (0);
+}
+
+int		enough_space_for_payload(int fd, Elf64_Shdr *shdr)
+{
+	char *content;
+
+	if (!(content = (char*)malloc(sizeof(char) * shdr->sh_size)))
+		exit (1);
+	lseek(fd, shdr->sh_offset, SEEK_SET);
+	handle_read_return(read(fd, content, shdr->sh_size));
+	for (int i = shdr->sh_size; i > 0; --i)
+	{
+		if (content[i] != 0)
+			return (shdr->sh_size - i >= 80);
+	}
+	free(content);
 	return (0);
 }
 
@@ -104,13 +118,14 @@ void	iterate_over_section_headers(int fd)
 	lseek(fd, ehdr.e_shoff, SEEK_SET);
 	for (int i = 0; i < ehdr.e_shnum; i++)
 	{
+		lseek(fd, ehdr.e_shoff + (i * sizeof(shdr)), SEEK_SET);
 		handle_read_return(read(fd, &shdr, sizeof(shdr)));
-		printf("addr: %lx, offset: %lx, size: %ld, sh_name: %s", shdr.sh_addr\
+		printf("addr: %lx, offset: %lx, size: %ld, %s", shdr.sh_addr\
 		, shdr.sh_offset, shdr.sh_size, shstrtab_content + shdr.sh_name);
 		if (shdr.sh_flags & SHF_EXECINSTR)
 			printf(" EXEC");
-		if (is_pt_load(fd, &ehdr, shdr.sh_offset + shdr.sh_size) == 1)
-			printf(" PT_LOAD");
+		if (shdr.sh_size >= 80 && is_pt_load(fd, &ehdr, shdr.sh_offset, shdr.sh_size) == 1)
+			printf(" %d", enough_space_for_payload(fd, &shdr));
 		printf("\n");
 	}
 	free(shstrtab_content);
