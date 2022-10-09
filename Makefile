@@ -1,4 +1,4 @@
-NAME=woody
+NAME=woody-woodpacker
 CC=clang
 CFLAGS=-Wall -Wextra -Werror
 
@@ -38,5 +38,5 @@ re: fclean all
 test:
 	$(CC) -o test test.c
 
-payload:
+payload: payload.s
 	nasm -f elf64 -o payload.o payload.s && ld -o payload payload.o

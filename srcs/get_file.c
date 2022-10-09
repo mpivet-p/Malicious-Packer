@@ -15,7 +15,7 @@ int	get_file(const char *filepath, void **file, size_t *fsize)
 	*fsize = lseek(fd, 0, SEEK_END);
 
 	lseek(fd, 0, SEEK_SET);
-	*file = mmap(NULL, *fsize, PROT_READ, MAP_PRIVATE, fd, 0);
+	*file = mmap(NULL, *fsize, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 	close(fd);
 	if (*file == MAP_FAILED)
 	{

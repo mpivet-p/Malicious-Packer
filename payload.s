@@ -16,7 +16,5 @@ section .text
 		mov	rsi, 0x401020
 		mov	rdx, 13
 		syscall
-		jmp	_end
-
-;section .rodata
-
+		mov rax, 0x401020
+		jmp rax
