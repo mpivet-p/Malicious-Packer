@@ -1,6 +1,6 @@
 NAME=woody-woodpacker
 CC=clang
-CFLAGS=-Wall -Wextra -Werror
+CFLAGS=-Wall -Wextra -Werror -g3
 
 SRCS_FILES=main.c get_file.c check_file.c woody.c
 OBJS_FILES=$(SRCS_FILES:.c=.o)
@@ -32,10 +32,11 @@ fclean: clean
 	rm -f $(NAME)
 	rm -f payload
 	rm -f test
+	rm -f woody
 
 re: fclean all
 
-test:
+test: test.c
 	$(CC) -o test test.c
 
 payload: payload.s

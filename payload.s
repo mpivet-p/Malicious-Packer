@@ -1,20 +1,19 @@
 global _start
 
-section .text
+_start:
+	push rdi
+	push rsi
+	push rdx
+	mov	rax, 1	;write syscall
+	mov	rdi, 1	;STDOUT_FILENO
+	mov rsi, 0x57525453
+	mov rdx, msglen
+	syscall
+	pop rdx
+	pop rsi
+	pop rdi
+	mov rax, 0x52444441
+	jmp rax
 
-	msg: db "Hello World!", 10
-
-	_end:
-		mov	rax, 60
-		mov	rdi, 42
-		syscall
-
-
-	_start:
-		mov	rax, 1	;write syscall
-		mov	rdi, 1	;STDOUT_FILENO
-		mov	rsi, 0x401020
-		mov	rdx, 13
-		syscall
-		mov rax, 0x401020
-		jmp rax
+msg: db "....WOODY....", 10
+msglen: equ $ - msg
