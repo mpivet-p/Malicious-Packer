@@ -179,12 +179,14 @@ void	insert_payload(void *file, uint64_t new_entry, Elf64_Shdr *shdr, uint64_t o
 	//\x41\x44\x44\x52 = ADDR       \x53\x54\x52\x57 = STRW
 	//unsigned char	payload[] = "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\xbe\x53\x54\x52\x57\xba\x0e\x00\x00\x00\x0f\x05\x5a\x5e\x5f\xb8\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
 	// unsigned char	payload[] = "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\x5a\x5e\x5f\xb8\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
-	unsigned char	payload[] =  "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\xbe\x53\x54\x52\x57\xba\x0e\x00\x00\x00\x0f\x05\x5a\x5e\x5f\xb8\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
-	size_t	payload_length = 49;
+	//unsigned char	payload[] =  "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\xbe\x53\x54\x52\x57\xba\x0e\x00\x00\x00\x0f\x05\x5a\x5e\x5f\xb8\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
+	unsigned char	payload[] =  "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\x6a\x57\x48\x89\xe6\xba\x01\x00\x00\x00\x0f\x05\x5a\x5a\x5e\x5f\x48\x8d\x04\x25\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
+	size_t	payload_length = 53;
 	void	*ptr;
 
 	addr_to_str((unsigned char*)payload, "ADDR", old_entry); // Setting up the jump to the old entry
-	addr_to_str((unsigned char*)payload, "STRW", new_entry + payload_length - 14); // -14 = beggining of the string to print
+    (void)new_entry;
+//	addr_to_str((unsigned char*)payload, "STRW", new_entry + payload_length - 14); // -14 = beggining of the string to print
 	ptr = (void*)(file + shdr->sh_offset + shdr->sh_size + 8);
 	memcpy(ptr, payload, payload_length);
 }
@@ -220,37 +222,38 @@ Elf64_Shdr	*get_section_header(void *file, char *name)
 uint64_t	set_entrypoint(void *file, Elf64_Ehdr *ehdr, uint64_t payload_addr)
 {
 	Elf64_Shdr	*init_array;
-	Elf64_Shdr	*shdr;
-	Elf64_Rela	*rela;
-	uint64_t	old;
+//	Elf64_Shdr	*shdr;
+//	Elf64_Rela	*rela;
+//	uint64_t	old;
 
 	init_array = get_section_header(file, ".init_array");
 	// printf(".init_array:\n");
 	// dump(file, init_array->sh_offset, init_array->sh_size);
-	if (ehdr->e_type == ET_DYN)
-	{
-		printf("Binary is Shared object file\n");
-		if (!(shdr = get_section_header(file, ".rela.dyn")))
-		{
-			fprintf(stderr, "woody: missing section (.rela.dyn), cannot procede!\n");
-			return (0);
-		}
-		for (size_t i = 0; i < (shdr->sh_size / sizeof(Elf64_Rela)); i++)
-		{
-			rela = (Elf64_Rela*)(file + shdr->sh_offset + (sizeof(Elf64_Rela) * i));
-			if (init_array->sh_addr == rela->r_offset)
-			{
-				dump(file, shdr->sh_offset + (sizeof(Elf64_Rela) * i), sizeof(Elf64_Rela));
-				old = rela->r_addend;
-				printf("rela.r_addend: %lx\n", rela->r_addend);
-				rela->r_addend = payload_addr;
-				break ;
-			}
-		}
-	}
+//	if (ehdr->e_type == ET_DYN)
+//	{
+//		printf("Binary is Shared object file\n");
+//		if (!(shdr = get_section_header(file, ".rela.dyn")))
+//		{
+//			fprintf(stderr, "woody: missing section (.rela.dyn), cannot procede!\n");
+//			return (0);
+//		}
+//		for (size_t i = 0; i < (shdr->sh_size / sizeof(Elf64_Rela)); i++)
+//		{
+//			rela = (Elf64_Rela*)(file + shdr->sh_offset + (sizeof(Elf64_Rela) * i));
+//			if (init_array->sh_addr == rela->r_offset)
+//			{
+//				dump(file, shdr->sh_offset + (sizeof(Elf64_Rela) * i), sizeof(Elf64_Rela));
+//				old = rela->r_addend;
+//				printf("rela.r_addend: %lx\n", rela->r_addend);
+//				rela->r_addend = payload_addr;
+//				break ;
+//			}
+//		}
+//	}
 	// memcpy(&old, file + init_array->sh_offset, 8);
 	// memcpy(file + init_array->sh_offset, &payload_addr, 8);
 	// dump(file, init_array->sh_offset, 8);
+    printf("Old payload: 0x%lx\nNew payload: 0x%lx\n", ehdr->e_entry, payload_addr);
 	ehdr->e_entry = payload_addr;
 	return (42);
 }
@@ -273,6 +276,7 @@ void	iterate_over_program_headers(void *file)
 			whitespaces = phdr->p_align - (phdr->p_filesz % phdr->p_align);
 			if (whitespaces > PAYLOAD_SIZE && phdr->p_flags & PF_X)
 			{
+                printf("Choosen program header: %d\n", i);
 				old_entrypoint = ehdr->e_entry;
 				shdr = get_last_section(file, phdr->p_offset, phdr->p_offset + phdr->p_filesz);
 				payload_addr = get_payload_addr(phdr, shdr);
