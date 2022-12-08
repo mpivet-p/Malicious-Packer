@@ -12,8 +12,9 @@ _start:
 	pop rdx
 	pop rsi
 	pop rdi
-	lea rax, [0x52444441]
-	jmp rax
+;	mov rax, 0x52444441
+;    jmp rax
+    jmp 0x52444441
 
 msg: db "....WOODY....", 10
 msg_end: db 0x0

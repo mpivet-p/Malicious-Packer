@@ -128,12 +128,12 @@ Elf64_Shdr	*get_last_section(void *file, uint64_t min, uint64_t max)
 	return (last_shdr);
 }
 
-size_t	prepare_section(Elf64_Shdr *shdr, size_t sizediff)
-{
-	shdr->sh_size += sizediff;
-	shdr->sh_flags |= SHF_EXECINSTR;
-	return (shdr->sh_size - sizediff);
-}
+//size_t	prepare_section(Elf64_Shdr *shdr, size_t sizediff)
+//{
+//	shdr->sh_size += sizediff;
+//	shdr->sh_flags |= SHF_EXECINSTR;
+//	return (shdr->sh_size - sizediff);
+//}
 
 void	write_file(void *file, size_t fsize)
 {
@@ -176,18 +176,13 @@ void	addr_to_str(unsigned char *str, char *key, uint64_t addr)
 
 void	insert_payload(void *file, uint64_t new_entry, Elf64_Shdr *shdr, uint64_t old_entry)
 {
-	//\x41\x44\x44\x52 = ADDR       \x53\x54\x52\x57 = STRW
-	//unsigned char	payload[] = "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\xbe\x53\x54\x52\x57\xba\x0e\x00\x00\x00\x0f\x05\x5a\x5e\x5f\xb8\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
-	// unsigned char	payload[] = "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\x5a\x5e\x5f\xb8\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
-	//unsigned char	payload[] =  "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\xbe\x53\x54\x52\x57\xba\x0e\x00\x00\x00\x0f\x05\x5a\x5e\x5f\xb8\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
-	unsigned char	payload[] =  "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\x48\x8d\x35\x14\x00\x00\x00\xba\x0e\x00\x00\x00\x0f\x05\x5a\x5e\x5f\x48\x8d\x04\x25\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
-	size_t	payload_length = 55;
+	unsigned char	payload[] =  "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\x48\x8d\x35\x11\x00\x00\x00\xba\x0e\x00\x00\x00\x0f\x05\x5a\x5e\x5f\xb8\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
+	size_t	payload_length = 51;
 	void	*ptr;
 
 	addr_to_str((unsigned char*)payload, "ADDR", old_entry); // Setting up the jump to the old entry
     (void)new_entry;
-//	addr_to_str((unsigned char*)payload, "STRW", new_entry + payload_length - 14); // -14 = beggining of the string to print
-	ptr = (void*)(file + shdr->sh_offset + shdr->sh_size + 8);
+	ptr = (void*)(file + shdr->sh_offset + shdr->sh_size + 1);
 	memcpy(ptr, payload, payload_length);
 }
 
@@ -196,7 +191,7 @@ uint64_t	get_payload_addr(Elf64_Phdr *phdr, Elf64_Shdr *shdr)
 	uint64_t base_address;
 
 	base_address = phdr->p_vaddr - phdr->p_offset;
-	return (base_address + shdr->sh_offset + shdr->sh_size + 8);
+	return (base_address + shdr->sh_offset + shdr->sh_size + 1);
 }
 
 Elf64_Shdr	*get_section_header(void *file, char *name)
@@ -258,6 +253,14 @@ uint64_t	set_entrypoint(void *file, Elf64_Ehdr *ehdr, uint64_t payload_addr)
 	return (42);
 }
 
+uint64_t test_entry(void *file)
+{
+	Elf64_Shdr	*text_section;
+
+	text_section = get_section_header(file, ".text");
+    return (text_section->sh_addr);
+}
+
 void	iterate_over_program_headers(void *file)
 {
 	Elf64_Ehdr	*ehdr;
@@ -277,12 +280,13 @@ void	iterate_over_program_headers(void *file)
 			if (whitespaces > PAYLOAD_SIZE && phdr->p_flags & PF_X)
 			{
                 printf("Choosen program header: %d\n", i);
-				old_entrypoint = ehdr->e_entry;
+				old_entrypoint = test_entry(file);
+				//old_entrypoint = ehdr->e_entry;
 				shdr = get_last_section(file, phdr->p_offset, phdr->p_offset + phdr->p_filesz);
 				payload_addr = get_payload_addr(phdr, shdr);
 				set_entrypoint(file, ehdr, payload_addr);
 				insert_payload(file, payload_addr, shdr, old_entrypoint);
-				prepare_section(shdr, PAYLOAD_SIZE);
+//				prepare_section(shdr, PAYLOAD_SIZE); Seems to be useless
 				increase_segment_size(phdr, PAYLOAD_SIZE);
 				return ;
 			}
