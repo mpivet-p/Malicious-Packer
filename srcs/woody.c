@@ -25,33 +25,23 @@ void	dump(void *file, uint64_t offset, size_t size)
 }
 
 // Returns the virtual address of the first segment of type == PT_LOAD
-uint64_t	get_image_base(void *file)
-{
-	Elf64_Ehdr	*ehdr;
-	Elf64_Phdr	*phdr;
-
-	ehdr = (Elf64_Ehdr*)file;
-	
-	for (int i = 0; i < ehdr->e_phnum; i++)
-	{
-		phdr = (Elf64_Phdr*)(file + ehdr->e_phoff + (sizeof(Elf64_Phdr) * i));
-		if (phdr->p_type == PT_LOAD)
-		{
-			printf("addr: 0x%lx\n", phdr->p_vaddr);
-			return (phdr->p_vaddr);
-		}
-	}
-	return (0);
-}
-
-int		get_shstrtab_content(void *file, Elf64_Ehdr *ehdr, char **ptr)
-{
-	Elf64_Shdr	*shdr;
-
-	shdr = (Elf64_Shdr*)(file + ehdr->e_shoff + (sizeof(Elf64_Shdr) * ehdr->e_shstrndx));
-	*ptr = (char*)(file + shdr->sh_offset);
-	return (0);
-}
+//uint64_t	get_image_base(void *file)
+//{
+//	Elf64_Ehdr	*ehdr;
+//	Elf64_Phdr	*phdr;
+//
+//	ehdr = (Elf64_Ehdr*)file;
+//	
+//	for (int i = 0; i < ehdr->e_phnum; i++)
+//	{
+//		phdr = (Elf64_Phdr*)(file + ehdr->e_phoff + (sizeof(Elf64_Phdr) * i));
+//		if (phdr->p_type == PT_LOAD)
+//		{
+//			return (phdr->p_vaddr);
+//		}
+//	}
+//	return (0);
+//}
 
 int		is_pt_load(void *file, Elf64_Ehdr *ehdr, uint64_t offset, uint64_t size)
 {
@@ -83,29 +73,6 @@ int		enough_space_for_payload(void *file, Elf64_Shdr *shdr)
 	return (0);
 }
 
-void	iterate_over_section_headers(void *file)
-{
-	Elf64_Ehdr	*ehdr;
-	Elf64_Shdr	*shdr;
-	char		*shstrtab_content;
-
-	ehdr = (Elf64_Ehdr*)file;
-	get_shstrtab_content(file, ehdr, &shstrtab_content);
-
-	for (int i = 0; i < ehdr->e_shnum; i++)
-	{
-
-		shdr = (Elf64_Shdr*)(file + ehdr->e_shoff + (i * sizeof(Elf64_Shdr)));
-		printf("addr: %lx, offset: %lx, size: %ld, %s", shdr->sh_addr\
-		, shdr->sh_offset, shdr->sh_size, shstrtab_content + shdr->sh_name);
-		if (shdr->sh_flags & SHF_EXECINSTR)
-			printf(" EXEC");
-		if (shdr->sh_size >= 80 && is_pt_load(file, ehdr, shdr->sh_offset, shdr->sh_size) == 1)
-			printf(" %d", enough_space_for_payload(file, shdr));
-		printf("\n");
-	}
-}
-
 Elf64_Shdr	*get_last_section(void *file, uint64_t min, uint64_t max)
 {
 	Elf64_Ehdr	*ehdr;
@@ -128,13 +95,6 @@ Elf64_Shdr	*get_last_section(void *file, uint64_t min, uint64_t max)
 	return (last_shdr);
 }
 
-//size_t	prepare_section(Elf64_Shdr *shdr, size_t sizediff)
-//{
-//	shdr->sh_size += sizediff;
-//	shdr->sh_flags |= SHF_EXECINSTR;
-//	return (shdr->sh_size - sizediff);
-//}
-
 void	write_file(void *file, size_t fsize)
 {
 	int fd;
@@ -143,6 +103,7 @@ void	write_file(void *file, size_t fsize)
 	{
 		write(fd, file, fsize);
 	}
+    close(fd);
 }
 
 void	increase_segment_size(Elf64_Phdr *phdr, size_t sizediff)
@@ -151,7 +112,7 @@ void	increase_segment_size(Elf64_Phdr *phdr, size_t sizediff)
 	phdr->p_memsz += sizediff;
 }
 
-void	addr_to_str(unsigned char *str, char *key, uint64_t addr)
+void	addr_to_str(unsigned char *str, char *key, uint32_t addr)
 {
 	size_t	i = 0;
 	size_t	j = 0;
@@ -166,7 +127,6 @@ void	addr_to_str(unsigned char *str, char *key, uint64_t addr)
 	}
 	if (i != 4)
 		return ;
-	printf("i = %zu   %zu\n", i, j);
 	j -= 4;
 	str[j + 3] = (unsigned char)((addr >> 24) & 0xFF);
 	str[j + 2] = (unsigned char)((addr >> 16) & 0xFF);
@@ -174,16 +134,14 @@ void	addr_to_str(unsigned char *str, char *key, uint64_t addr)
 	str[j] = (unsigned char)(addr & 0xFF);
 }
 
-void	insert_payload(void *file, uint64_t new_entry, Elf64_Shdr *shdr, uint64_t old_entry)
+void	insert_payload(void *file, Elf64_Shdr *shdr, uint64_t old_entry)
 {
-	unsigned char	payload[] =  "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\x48\x8d\x35\x11\x00\x00\x00\xba\x0e\x00\x00\x00\x0f\x05\x5a\x5e\x5f\xb8\x41\x44\x44\x52\xff\xe0\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a";
-	size_t	payload_length = 51;
+	unsigned char	payload[] =  PAYLOAD_OPCODES;
 	void	*ptr;
 
 	addr_to_str((unsigned char*)payload, "ADDR", old_entry); // Setting up the jump to the old entry
-    (void)new_entry;
-	ptr = (void*)(file + shdr->sh_offset + shdr->sh_size + 1);
-	memcpy(ptr, payload, payload_length);
+	ptr = (void*)(file + shdr->sh_offset + shdr->sh_size);
+	memcpy(ptr, payload, PAYLOAD_SIZE);
 }
 
 uint64_t	get_payload_addr(Elf64_Phdr *phdr, Elf64_Shdr *shdr)
@@ -191,27 +149,7 @@ uint64_t	get_payload_addr(Elf64_Phdr *phdr, Elf64_Shdr *shdr)
 	uint64_t base_address;
 
 	base_address = phdr->p_vaddr - phdr->p_offset;
-	return (base_address + shdr->sh_offset + shdr->sh_size + 1);
-}
-
-Elf64_Shdr	*get_section_header(void *file, char *name)
-{
-	Elf64_Ehdr	*ehdr;
-	Elf64_Shdr	*shdr;
-	char		*shstrtab_content;
-
-	ehdr = (Elf64_Ehdr*)file;
-	get_shstrtab_content(file, ehdr, &shstrtab_content);
-
-	for (int i = 0; i < ehdr->e_shnum; i++)
-	{
-		shdr = (Elf64_Shdr*)(file + ehdr->e_shoff + (i * sizeof(Elf64_Shdr)));
-		if (strcmp(shstrtab_content + shdr->sh_name, name) == 0)
-		{
-			return (shdr);
-		}
-	}
-	return (NULL);
+	return (base_address + shdr->sh_offset + shdr->sh_size);
 }
 
 uint64_t	set_entrypoint(void *file, Elf64_Ehdr *ehdr, uint64_t payload_addr)
@@ -248,7 +186,6 @@ uint64_t	set_entrypoint(void *file, Elf64_Ehdr *ehdr, uint64_t payload_addr)
 	// memcpy(&old, file + init_array->sh_offset, 8);
 	// memcpy(file + init_array->sh_offset, &payload_addr, 8);
 	// dump(file, init_array->sh_offset, 8);
-    printf("Old payload: 0x%lx\nNew payload: 0x%lx\n", ehdr->e_entry, payload_addr);
 	ehdr->e_entry = payload_addr;
 	return (42);
 }
@@ -261,12 +198,13 @@ uint64_t test_entry(void *file)
     return (text_section->sh_addr);
 }
 
+//Need refacto
 void	iterate_over_program_headers(void *file)
 {
 	Elf64_Ehdr	*ehdr;
 	Elf64_Phdr	*phdr;
 	Elf64_Shdr	*shdr;
-	uint64_t	old_entrypoint;
+	uint32_t	old_entrypoint;
 	uint64_t	payload_addr;
 	size_t		whitespaces;
 
@@ -279,14 +217,15 @@ void	iterate_over_program_headers(void *file)
 			whitespaces = phdr->p_align - (phdr->p_filesz % phdr->p_align);
 			if (whitespaces > PAYLOAD_SIZE && phdr->p_flags & PF_X)
 			{
-                printf("Choosen program header: %d\n", i);
 				old_entrypoint = test_entry(file);
-				//old_entrypoint = ehdr->e_entry;
 				shdr = get_last_section(file, phdr->p_offset, phdr->p_offset + phdr->p_filesz);
 				payload_addr = get_payload_addr(phdr, shdr);
-				set_entrypoint(file, ehdr, payload_addr);
-				insert_payload(file, payload_addr, shdr, old_entrypoint);
-//				prepare_section(shdr, PAYLOAD_SIZE); Seems to be useless
+                //printf("\nnew_entry: 0x%x\n", (uint32_t)(ehdr->e_entry + phdr->p_vaddr - (payload_addr - PAYLOAD_SIZE)));
+                printf("\nnew_entry: 0x%x\n", (uint32_t)(ehdr->e_entry + phdr->p_vaddr));
+                //old_entrypoint = (uint32_t)(ehdr->e_entry + phdr->p_vaddr - (payload_addr - PAYLOAD_SIZE));
+//				set_entrypoint(file, ehdr, payload_addr); Seems to be useless
+                ehdr->e_entry = payload_addr;
+				insert_payload(file, shdr, old_entrypoint);
 				increase_segment_size(phdr, PAYLOAD_SIZE);
 				return ;
 			}
@@ -297,8 +236,6 @@ void	iterate_over_program_headers(void *file)
 int		woody(char *file_name, void *file, size_t fsize)
 {
 	(void)file_name;
-	get_image_base(file);
-	//iterate_over_section_headers(file);
 	iterate_over_program_headers(file);
 	write_file(file, fsize);
 	munmap(file, fsize);
