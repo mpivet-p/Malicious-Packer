@@ -13,8 +13,7 @@ _start:
 	pop rsi
 	pop rdi
 ;	mov rax, 0x52444441
-;    jmp rax
-    jmp 0x52444441
+    jmp 0xffffffff
 
 msg: db "....WOODY....", 10
 msg_end: db 0x0

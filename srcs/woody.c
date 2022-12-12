@@ -139,9 +139,13 @@ void	insert_payload(void *file, Elf64_Shdr *shdr, uint64_t old_entry)
 	unsigned char	payload[] =  PAYLOAD_OPCODES;
 	void	*ptr;
 
-	addr_to_str((unsigned char*)payload, "ADDR", old_entry); // Setting up the jump to the old entry
+//	addr_to_str((unsigned char*)payload, "\xfb\xff\xff\xff", old_entry); // Setting up the jump to the old entry
+(void)old_entry;
 	ptr = (void*)(file + shdr->sh_offset + shdr->sh_size);
 	memcpy(ptr, payload, PAYLOAD_SIZE);
+	ptr = (void*)(ptr + PAYLOAD_SIZE - 18);
+	printf("%x\n", *(uint32_t*)(ptr));
+	*(uint32_t*)(ptr) = old_entry;
 }
 
 uint64_t	get_payload_addr(Elf64_Phdr *phdr, Elf64_Shdr *shdr)
@@ -204,6 +208,7 @@ void	iterate_over_program_headers(void *file)
 	Elf64_Ehdr	*ehdr;
 	Elf64_Phdr	*phdr;
 	Elf64_Shdr	*shdr;
+	Elf64_Shdr	*text_shdr;
 	uint32_t	old_entrypoint;
 	uint64_t	payload_addr;
 	size_t		whitespaces;
@@ -220,10 +225,12 @@ void	iterate_over_program_headers(void *file)
 				old_entrypoint = test_entry(file);
 				shdr = get_last_section(file, phdr->p_offset, phdr->p_offset + phdr->p_filesz);
 				payload_addr = get_payload_addr(phdr, shdr);
-                //printf("\nnew_entry: 0x%x\n", (uint32_t)(ehdr->e_entry + phdr->p_vaddr - (payload_addr - PAYLOAD_SIZE)));
-                printf("\nnew_entry: 0x%x\n", (uint32_t)(ehdr->e_entry + phdr->p_vaddr));
-                //old_entrypoint = (uint32_t)(ehdr->e_entry + phdr->p_vaddr - (payload_addr - PAYLOAD_SIZE));
-//				set_entrypoint(file, ehdr, payload_addr); Seems to be useless
+                old_entrypoint = (uint32_t)(ehdr->e_entry - (payload_addr + PAYLOAD_SIZE - 19));
+                //old_entrypoint = (uint32_t)((ehdr->e_entry + phdr->p_vaddr) - (payload_addr + PAYLOAD_SIZE));
+                printf("\njmp 0x%x\n", old_entrypoint);
+				text_shdr = get_section_header(file, ".text");
+                printf("e_entry: 0x%lx .text offset: 0x%lx p_vaddr: 0x%lx dist: 0x%lx\n", ehdr->e_entry, text_shdr->sh_addr, phdr->p_vaddr, (payload_addr + PAYLOAD_SIZE));
+                printf("\nint %d\n", (int)old_entrypoint);
                 ehdr->e_entry = payload_addr;
 				insert_payload(file, shdr, old_entrypoint);
 				increase_segment_size(phdr, PAYLOAD_SIZE);
