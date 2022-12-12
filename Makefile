@@ -2,7 +2,7 @@ NAME=woody-woodpacker
 CC=clang
 CFLAGS=-Wall -Wextra -Werror -g3
 
-SRCS_FILES=main.c get_file.c check_file.c woody.c get_shstrtab.c get_section_header.c
+SRCS_FILES=main.c get_file.c check_file.c woody.c get_shstrtab.c get_section_header.c encrypt_text_section.c
 OBJS_FILES=$(SRCS_FILES:.c=.o)
 
 SRCS_DIR=srcs/

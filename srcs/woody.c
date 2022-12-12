@@ -1,6 +1,7 @@
 #include <elf.h>
 #include <sys/mman.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <woody.h>
@@ -94,13 +95,29 @@ uint64_t	get_payload_addr(Elf64_Phdr *phdr, Elf64_Shdr *shdr)
 	return (base_address + shdr->sh_offset + shdr->sh_size);
 }
 
+//Encryption part
+int	generate_key(void)
+{
+	size_t	len;
+	int		fd;
+	int		key;
+
+	if ((fd = open("/dev/urandom", O_RDONLY)) < 0
+		|| (len = read(fd, &key, 4)) != 4)
+	{
+		fprintf(stderr, "woody: key generation failed!");
+		exit(1);
+	}
+	return (key);
+}
+
 //Need refacto
 void	iterate_over_program_headers(void *file)
 {
 	Elf64_Ehdr	*ehdr;
 	Elf64_Phdr	*phdr;
 	Elf64_Shdr	*shdr;
-	uint32_t	old_entrypoint;
+	uint32_t	jmp_addr;
 	uint64_t	payload_addr;
 	size_t		whitespaces;
 
@@ -116,10 +133,10 @@ void	iterate_over_program_headers(void *file)
 				shdr = get_last_section(file, phdr->p_offset, phdr->p_offset + phdr->p_filesz);
 				payload_addr = get_payload_addr(phdr, shdr);
 				//Might need to make it relative to the segment address (if the .text section is on another segment)
-                old_entrypoint = (uint32_t)(ehdr->e_entry - (payload_addr + PAYLOAD_SIZE - 14));
-                printf("\njmp 0x%x (%d)\n", old_entrypoint, (int)old_entrypoint);
+                jmp_addr = (uint32_t)(ehdr->e_entry - (payload_addr + PAYLOAD_SIZE - 14));
+                printf("\njmp 0x%x (%d)\n", jmp_addr, (int)jmp_addr);
                 ehdr->e_entry = payload_addr;
-				insert_payload(file, shdr, old_entrypoint);
+				insert_payload(file, shdr, jmp_addr);
 				increase_segment_size(phdr, PAYLOAD_SIZE);
 				return ;
 			}
@@ -131,6 +148,8 @@ int		woody(char *file_name, void *file, size_t fsize)
 {
 	(void)file_name;
 	iterate_over_program_headers(file);
+	encrypt_text_section(file);
+	printf("0x%x\n", generate_key());
 	write_file(file, fsize);
 	munmap(file, fsize);
 	return (0);

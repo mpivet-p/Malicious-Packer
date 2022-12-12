@@ -12,3 +12,4 @@ int	get_file(const char *filepath, void **file, size_t *fsize);
 int	woody(char *file_name, void *file, size_t fsize);
 Elf64_Shdr	*get_section_header(void *file, char *name);
 int		get_shstrtab_content(void *file, Elf64_Ehdr *ehdr, char **ptr);
+void	encrypt_text_section(void *file);
