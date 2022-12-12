@@ -76,15 +76,24 @@ void	increase_segment_size(Elf64_Phdr *phdr, size_t sizediff)
 	phdr->p_memsz += sizediff;
 }
 
-void	insert_payload(void *file, Elf64_Shdr *shdr, uint64_t old_entry)
+void	copy_payload(void *file, Elf64_Shdr *shdr, uint64_t old_entry)
 {
 	unsigned char	payload[] =  PAYLOAD_OPCODES;
 	void	*ptr;
 
 	ptr = (void*)(file + shdr->sh_offset + shdr->sh_size);
 	memcpy(ptr, payload, PAYLOAD_SIZE);
-	ptr = (void*)(ptr + PAYLOAD_SIZE - 18);
+
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + PAYLOAD_SIZE - 18);
 	*(uint32_t*)(ptr) = old_entry;
+
+//	// Set key
+//	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + PAYLOAD_SIZE - 18);
+//	*(uint32_t*)(ptr) = old_entry;
+
+//	// Set begin
+//	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + PAYLOAD_SIZE - 18);
+//	*(uint32_t*)(ptr) = old_entry;
 }
 
 uint64_t	get_payload_addr(Elf64_Phdr *phdr, Elf64_Shdr *shdr)
@@ -95,7 +104,6 @@ uint64_t	get_payload_addr(Elf64_Phdr *phdr, Elf64_Shdr *shdr)
 	return (base_address + shdr->sh_offset + shdr->sh_size);
 }
 
-//Encryption part
 int	generate_key(void)
 {
 	size_t	len;
@@ -108,49 +116,64 @@ int	generate_key(void)
 		fprintf(stderr, "woody: key generation failed!");
 		exit(1);
 	}
+	close(fd); // Need to close if read fails too
 	return (key);
 }
 
-//Need refacto
-void	iterate_over_program_headers(void *file)
+Elf64_Phdr	*find_cave_segment(void *file, Elf64_Ehdr *ehdr)
 {
-	Elf64_Ehdr	*ehdr;
 	Elf64_Phdr	*phdr;
-	Elf64_Shdr	*shdr;
-	uint32_t	jmp_addr;
-	uint64_t	payload_addr;
 	size_t		whitespaces;
 
-	ehdr = (Elf64_Ehdr*)file;
 	for (int i = 0; i < ehdr->e_phnum; i++)
 	{
 		phdr = (Elf64_Phdr*)(file + ehdr->e_phoff + (i * sizeof(Elf64_Phdr)));
-		if (phdr->p_type == PT_LOAD)
+		if (phdr->p_type != PT_LOAD || !(phdr->p_flags & PF_X))
+			continue ;
+
+		whitespaces = phdr->p_align - (phdr->p_filesz % phdr->p_align);
+		if (whitespaces > PAYLOAD_SIZE)
 		{
-			whitespaces = phdr->p_align - (phdr->p_filesz % phdr->p_align);
-			if (whitespaces > PAYLOAD_SIZE && phdr->p_flags & PF_X)
-			{
-				shdr = get_last_section(file, phdr->p_offset, phdr->p_offset + phdr->p_filesz);
-				payload_addr = get_payload_addr(phdr, shdr);
-				//Might need to make it relative to the segment address (if the .text section is on another segment)
-                jmp_addr = (uint32_t)(ehdr->e_entry - (payload_addr + PAYLOAD_SIZE - 14));
-                printf("\njmp 0x%x (%d)\n", jmp_addr, (int)jmp_addr);
-                ehdr->e_entry = payload_addr;
-				insert_payload(file, shdr, jmp_addr);
-				increase_segment_size(phdr, PAYLOAD_SIZE);
-				return ;
-			}
+			return (phdr);
 		}
 	}
+	return (NULL);
+}
+
+void	inject(void *file, Elf64_Ehdr *ehdr, Elf64_Phdr *phdr)
+{
+	Elf64_Shdr	*shdr;
+	uint32_t	jmp_addr;
+	uint64_t	payload_addr;
+
+	shdr = get_last_section(file, phdr->p_offset, phdr->p_offset + phdr->p_filesz);
+	payload_addr = get_payload_addr(phdr, shdr);
+	//Might need to make it relative to the segment address (if the .text section is on another segment)
+    jmp_addr = (uint32_t)(ehdr->e_entry - (payload_addr + PAYLOAD_SIZE - 14));
+    printf("\njmp 0x%x (relative: %d)\n", jmp_addr, (int)jmp_addr); //Debug
+
+    ehdr->e_entry = payload_addr;
+	copy_payload(file, shdr, jmp_addr);
+	increase_segment_size(phdr, PAYLOAD_SIZE);
 }
 
 int		woody(char *file_name, void *file, size_t fsize)
 {
-	(void)file_name;
-	iterate_over_program_headers(file);
-	encrypt_text_section(file);
-	printf("0x%x\n", generate_key());
-	write_file(file, fsize);
+	Elf64_Phdr	*phdr;
+	Elf64_Ehdr	*ehdr;
+
+	ehdr = (Elf64_Ehdr*)file;
+	if ((phdr = find_cave_segment(file, ehdr)))
+	{
+		printf("0x%x\n", generate_key());
+		encrypt_text_section(file);
+		inject(file, ehdr, phdr);
+		write_file(file, fsize);
+	}
+	else
+	{
+		fprintf(stderr, "woody: error with file %s!\n", file_name);
+	}
 	munmap(file, fsize);
 	return (0);
 }
