@@ -2,10 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void	encrypt_text_section(void *file)
+void	encrypt_text_section(void *file, uint32_t key)
 {
 	Elf64_Shdr *text_sect;
 
+	(void)key;
 	text_sect = get_section_header(file, ".text");
 	if (!text_sect)
 	{

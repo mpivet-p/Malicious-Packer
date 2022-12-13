@@ -12,16 +12,26 @@ print_woody:
 	mov rdx, msg_end - msg
 	syscall
 
-	mov rdx, "YYEK"
-	mov rsi, "END"
-	mov	rcx, "BGIN"
+	mov r8, "SIZE"
+	lea r9, [rel _start]
+	sub r9, "BGIN"
+	mov r10, "YYEK"
+
+mem_protect:
+	mov rax, 10
+	mov rdi, r9
+	mov rsi, r8
+	mov rdx, 7
+	syscall
+
 decrypt_loop:
-	mov bl, byte [rel rsi]
+	mov bl, byte [r9]
 	dec bl
-	mov byte [rel rsi], bl
-	inc rcx
-	test rcx, rsi
-	jle decrypt_loop
+	mov byte [r9], bl
+	inc r9
+	dec r8
+	test r8, r8
+	jnz decrypt_loop
 
 end:
 	pop rdx

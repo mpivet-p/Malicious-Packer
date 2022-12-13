@@ -76,16 +76,13 @@ void	increase_segment_size(Elf64_Phdr *phdr, size_t sizediff)
 	phdr->p_memsz += sizediff;
 }
 
-void	copy_payload(void *file, Elf64_Shdr *shdr, uint64_t old_entry)
+void	copy_payload(void *file, Elf64_Shdr *shdr)
 {
 	unsigned char	payload[] =  PAYLOAD_OPCODES;
 	void	*ptr;
 
 	ptr = (void*)(file + shdr->sh_offset + shdr->sh_size);
 	memcpy(ptr, payload, PAYLOAD_SIZE);
-
-	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + PAYLOAD_SIZE - 18);
-	*(uint32_t*)(ptr) = old_entry;
 
 //	// Set key
 //	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + PAYLOAD_SIZE - 18);
@@ -140,7 +137,32 @@ Elf64_Phdr	*find_cave_segment(void *file, Elf64_Ehdr *ehdr)
 	return (NULL);
 }
 
-void	inject(void *file, Elf64_Ehdr *ehdr, Elf64_Phdr *phdr)
+void	config_payload(void *file, Elf64_Shdr *shdr, uint32_t jmp_addr, uint32_t key)
+{
+	Elf64_Shdr	*text_shdr;
+	void		*ptr;
+
+	text_shdr = get_section_header(file, ".text");
+	//Setting up the jump
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + PAYLOAD_SIZE - 18);
+	*(uint32_t*)(ptr) = jmp_addr;
+
+	//.text seciton size
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 29);
+	*(uint32_t*)(ptr) = text_shdr->sh_size;
+
+	//.text relative addr
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 36);
+	printf("%d\n", (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size + 42)));
+	*(uint32_t*)(ptr) = (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size));
+	//*(uint32_t*)(ptr) = 0x12345678;
+
+	//Setting up the key
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 42);
+	*(uint32_t*)(ptr) = key;
+}
+
+void	inject(void *file, Elf64_Ehdr *ehdr, Elf64_Phdr *phdr, uint32_t key)
 {
 	Elf64_Shdr	*shdr;
 	uint32_t	jmp_addr;
@@ -148,26 +170,29 @@ void	inject(void *file, Elf64_Ehdr *ehdr, Elf64_Phdr *phdr)
 
 	shdr = get_last_section(file, phdr->p_offset, phdr->p_offset + phdr->p_filesz);
 	payload_addr = get_payload_addr(phdr, shdr);
-	//Might need to make it relative to the segment address (if the .text section is on another segment)
     jmp_addr = (uint32_t)(ehdr->e_entry - (payload_addr + PAYLOAD_SIZE - 14));
-    printf("\njmp 0x%x (relative: %d)\n", jmp_addr, (int)jmp_addr); //Debug
 
+	copy_payload(file, shdr);
+	config_payload(file, shdr, jmp_addr, key);
     ehdr->e_entry = payload_addr;
-	copy_payload(file, shdr, jmp_addr);
 	increase_segment_size(phdr, PAYLOAD_SIZE);
+	//debug
+	//shdr->sh_size += PAYLOAD_SIZE;
 }
 
 int		woody(char *file_name, void *file, size_t fsize)
 {
 	Elf64_Phdr	*phdr;
 	Elf64_Ehdr	*ehdr;
+	uint32_t	key;
 
 	ehdr = (Elf64_Ehdr*)file;
 	if ((phdr = find_cave_segment(file, ehdr)))
 	{
-		printf("0x%x\n", generate_key());
-		encrypt_text_section(file);
-		inject(file, ehdr, phdr);
+		key = generate_key();
+		key = 0x4231ABCD;
+		encrypt_text_section(file, key);
+		inject(file, ehdr, phdr, key);
 		write_file(file, fsize);
 	}
 	else
