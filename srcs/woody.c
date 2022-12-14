@@ -152,14 +152,30 @@ void	config_payload(void *file, Elf64_Shdr *shdr, uint32_t jmp_addr, uint32_t ke
 	*(uint32_t*)(ptr) = text_shdr->sh_size;
 
 	//.text relative addr
-	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 36);
-	printf("%d\n", (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size + 42)));
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 43);
+	printf("%d\n", (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size)));
 	*(uint32_t*)(ptr) = (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size));
-	//*(uint32_t*)(ptr) = 0x12345678;
 
 	//Setting up the key
-	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 42);
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 49);
 	*(uint32_t*)(ptr) = key;
+}
+
+void	config_mprotect(void *file, Elf64_Phdr *phdr, Elf64_Shdr *shdr)
+{
+	Elf64_Shdr	*text_shdr;
+	void		*ptr;
+
+	text_shdr = get_section_header(file, ".text");
+
+	//.text relative addr
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 64);
+	printf("%d\n", (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size)));
+	*(uint32_t*)(ptr) = (uint32_t)(phdr->p_vaddr - text_shdr->sh_addr);
+
+	//Setting up the key
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 69);
+	*(uint32_t*)(ptr) = (uint32_t)phdr->p_memsz;
 }
 
 void	inject(void *file, Elf64_Ehdr *ehdr, Elf64_Phdr *phdr, uint32_t key)
@@ -174,10 +190,11 @@ void	inject(void *file, Elf64_Ehdr *ehdr, Elf64_Phdr *phdr, uint32_t key)
 
 	copy_payload(file, shdr);
 	config_payload(file, shdr, jmp_addr, key);
+	config_mprotect(file, phdr, shdr);
     ehdr->e_entry = payload_addr;
 	increase_segment_size(phdr, PAYLOAD_SIZE);
 	//debug
-	//shdr->sh_size += PAYLOAD_SIZE;
+	shdr->sh_size += PAYLOAD_SIZE;
 }
 
 int		woody(char *file_name, void *file, size_t fsize)

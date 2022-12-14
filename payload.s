@@ -14,14 +14,15 @@ print_woody:
 
 	mov r8, "SIZE"
 	lea r9, [rel _start]
-	sub r9, "BGIN"
-	mov r10, "YYEK"
+	add r9, "BGIN"
+	mov r10, "KEY "
 
 mem_protect:
-	mov rax, 10
-	mov rdi, r9
-	mov rsi, r8
-	mov rdx, 7
+	mov rax, 10			; mprotect syscall code
+	mov rdi, r9 		; addr
+	add rdi, "SGMT"
+	mov rsi, "SSIZ"		; size
+	mov rdx, 7			; read, write, exec
 	syscall
 
 decrypt_loop:
