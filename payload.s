@@ -15,7 +15,6 @@ print_woody:
 	mov r8, "SIZE"
 	lea r9, [rel _start]
 	add r9, "BGIN"
-	mov r10, "KEY "
 
 mem_protect:
 	mov rax, 10			; mprotect syscall code
@@ -42,3 +41,4 @@ end:
 
 msg: db "....WOODY....", 10
 msg_end: db 0x0
+key: db "xKEY"

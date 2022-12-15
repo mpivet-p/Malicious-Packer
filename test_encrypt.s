@@ -1,0 +1,16 @@
+global _start
+
+_start:
+	mov	rbx, 0xff00a21c
+	mov rax, 7
+	mov	r10, 0x141882192e00f9
+
+loop:
+	mov rcx, 4
+	div rcx
+	dec rdx
+	mov rax, [rel key + rdx]
+	xor rax, rax
+
+msg: db 0xeb, 0x18, 0x7d, 0x05, 0xd1, 0x00, 0xd3
+key: db 0xff, 0x00, 0xa2, 0x1c
