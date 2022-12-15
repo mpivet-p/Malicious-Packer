@@ -147,12 +147,12 @@ void	config_payload(void *file, Elf64_Shdr *shdr, uint32_t jmp_addr, uint32_t ke
 	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + PAYLOAD_SIZE - 22);
 	*(uint32_t*)(ptr) = jmp_addr;
 
-	//.text seciton size
-	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 29);
+	//.text section size
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 69);
 	*(uint32_t*)(ptr) = text_shdr->sh_size;
 
 	//.text relative addr
-	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 43);
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 37);
 	printf("%d\n", (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size)));
 	*(uint32_t*)(ptr) = (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size));
 
@@ -168,13 +168,13 @@ void	config_mprotect(void *file, Elf64_Phdr *phdr, Elf64_Shdr *shdr)
 
 	text_shdr = get_section_header(file, ".text");
 
-	//.text relative addr
-	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 58);
+	//page address
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 52);
 	printf("%d\n", (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size)));
 	*(uint32_t*)(ptr) = (uint32_t)(phdr->p_vaddr - text_shdr->sh_addr);
 
-	//Setting up the key
-	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 63);
+	//page size
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 57);
 	*(uint32_t*)(ptr) = (uint32_t)phdr->p_memsz;
 }
 

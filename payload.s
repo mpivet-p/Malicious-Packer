@@ -12,10 +12,8 @@ print_woody:
 	mov rdx, msg_end - msg
 	syscall
 
-	mov r8, "SIZE"
 	lea r9, [rel _start]
 	add r9, "BGIN"
-
 mem_protect:
 	mov rax, 10			; mprotect syscall code
 	mov rdi, r9 		; addr
@@ -24,13 +22,21 @@ mem_protect:
 	mov rdx, 7			; read, write, exec
 	syscall
 
+	mov rcx, "SIZE"
 decrypt_loop:
+	dec rcx
 	mov bl, byte [r9]
-	dec bl
+
+	xor rdx, rdx
+	mov rax, rcx
+	mov rdi, 4			; 4 = key length
+	div rdi
+	mov al, byte [rel key + rdx]
+	xor bl, al
+
 	mov byte [r9], bl
 	inc r9
-	dec r8
-	test r8, r8
+	test rcx, rcx
 	jnz decrypt_loop
 
 end:
