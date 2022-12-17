@@ -23,6 +23,7 @@ mem_protect:
 	syscall
 
 	mov rcx, "SIZE"
+	lea	r10, [rel key]
 decrypt_loop:
 	dec rcx
 	mov bl, byte [r9 + rcx]
@@ -31,7 +32,6 @@ decrypt_loop:
 	mov rax, rcx
 	mov rdi, 4			; 4 = key length
 	div rdi
-	lea	r10, [rel key]
 	mov al, byte [r10 + rdx]
 	xor bl, al
 

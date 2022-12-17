@@ -55,7 +55,6 @@ Elf64_Shdr	*get_last_section(void *file, uint64_t min, uint64_t max)
 				last_shdr = shdr;
 		}
 	}
-	printf("Last section: %s\n", shstrtab_content + last_shdr->sh_name);
 	return (last_shdr);
 }
 
@@ -83,14 +82,6 @@ void	copy_payload(void *file, Elf64_Shdr *shdr)
 
 	ptr = (void*)(file + shdr->sh_offset + shdr->sh_size);
 	memcpy(ptr, payload, PAYLOAD_SIZE);
-
-//	// Set key
-//	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + PAYLOAD_SIZE - 18);
-//	*(uint32_t*)(ptr) = old_entry;
-
-//	// Set begin
-//	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + PAYLOAD_SIZE - 18);
-//	*(uint32_t*)(ptr) = old_entry;
 }
 
 uint64_t	get_payload_addr(Elf64_Phdr *phdr, Elf64_Shdr *shdr)
@@ -107,14 +98,17 @@ int	generate_key(void)
 	int		fd;
 	int		key;
 
-	if ((fd = open("/dev/urandom", O_RDONLY)) < 0
-		|| (len = read(fd, &key, 4)) != 4)
+	if ((fd = open("/dev/urandom", O_RDONLY)) >= 0)
 	{
-		fprintf(stderr, "woody: key generation failed!");
-		exit(1);
+		len = read(fd, &key, 4);
+		close(fd);
+		if (len == 4)
+		{
+			return (key);
+		}
 	}
-	close(fd); // Need to close if read fails too
-	return (key);
+	fprintf(stderr, "woody: key generation failed!");
+	exit(1);
 }
 
 Elf64_Phdr	*find_cave_segment(void *file, Elf64_Ehdr *ehdr)
@@ -153,7 +147,6 @@ void	config_payload(void *file, Elf64_Shdr *shdr, uint32_t jmp_addr, uint32_t ke
 
 	//.text relative addr
 	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 37);
-	printf("%d\n", (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size)));
 	*(uint32_t*)(ptr) = (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size));
 
 	//Setting up the key
@@ -170,7 +163,6 @@ void	config_mprotect(void *file, Elf64_Phdr *phdr, Elf64_Shdr *shdr)
 
 	//page address
 	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size) + 52);
-	printf("%d\n", (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size)));
 	*(uint32_t*)(ptr) = (uint32_t)(phdr->p_vaddr - text_shdr->sh_addr);
 
 	//page size
@@ -193,8 +185,6 @@ void	inject(void *file, Elf64_Ehdr *ehdr, Elf64_Phdr *phdr, uint32_t key)
 	config_mprotect(file, phdr, shdr);
     ehdr->e_entry = payload_addr;
 	increase_segment_size(phdr, PAYLOAD_SIZE);
-	//debug
-	shdr->sh_size += PAYLOAD_SIZE;
 }
 
 int		woody(char *file_name, void *file, size_t fsize)
@@ -207,7 +197,6 @@ int		woody(char *file_name, void *file, size_t fsize)
 	if ((phdr = find_cave_segment(file, ehdr)))
 	{
 		key = generate_key();
-		key = 0x4231ABCD;
 		encrypt_text_section(file, key);
 		inject(file, ehdr, phdr, key);
 		write_file(file, fsize);
