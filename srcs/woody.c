@@ -157,7 +157,7 @@ void	config_payload(void *file, Elf64_Shdr *shdr, uint32_t jmp_addr, uint32_t ke
 	*(uint32_t*)(ptr) = (uint32_t)(text_shdr->sh_addr - (shdr->sh_addr + shdr->sh_size));
 
 	//Setting up the key
-	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size + PAYLOAD_SIZE - 4));
+	ptr = (void*)((file + shdr->sh_offset + shdr->sh_size + PAYLOAD_SIZE - 3));
 	*(uint32_t*)(ptr) = key;
 }
 

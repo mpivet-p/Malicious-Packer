@@ -25,17 +25,17 @@ mem_protect:
 	mov rcx, "SIZE"
 decrypt_loop:
 	dec rcx
-	mov bl, byte [r9]
+	mov bl, byte [r9 + rcx]
 
 	xor rdx, rdx
 	mov rax, rcx
 	mov rdi, 4			; 4 = key length
 	div rdi
-	mov al, byte [rel key + rdx]
+	lea	r10, [rel key]
+	mov al, byte [r10 + rdx]
 	xor bl, al
 
-	mov byte [r9], bl
-	inc r9
+	mov byte [r9 + rcx], bl
 	test rcx, rcx
 	jnz decrypt_loop
 
