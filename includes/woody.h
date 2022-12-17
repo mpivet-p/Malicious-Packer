@@ -6,9 +6,15 @@
 #define PAYLOAD_SIZE 142
 #define PAYLOAD_OPCODES "\x57\x56\x52\xb8\x01\x00\x00\x00\xbf\x01\x00\x00\x00\x48\x8d\x35\x68\x00\x00\x00\xba\x0e\x00\x00\x00\x0f\x05\x4c\x8d\x0d\xde\xff\xff\xff\x49\x81\xc1\x42\x47\x49\x4e\xb8\x0a\x00\x00\x00\x4c\x89\xcf\x48\x81\xc7\x53\x47\x4d\x54\xbe\x53\x53\x49\x5a\xba\x07\x00\x00\x00\x0f\x05\xb9\x53\x49\x5a\x45\x4c\x8d\x15\x3b\x00\x00\x00\xbf\x04\x00\x00\x00\x48\xff\xc9\x41\x8a\x1c\x09\x48\x31\xd2\x48\x89\xc8\x48\xf7\xf7\x41\x8a\x04\x12\x30\xc3\x41\x88\x1c\x09\x48\x85\xc9\x75\xe1\x5a\x5e\x5f\xe9\xfb\xff\xff\xff\x2e\x2e\x2e\x2e\x57\x4f\x4f\x44\x59\x2e\x2e\x2e\x2e\x0a\x78\x4b\x45\x59"
 
-int	check_file(char *filepath);
-int	get_file(const char *filepath, void **file, size_t *fsize);
-int	woody(char *file_name, void *file, size_t fsize);
+Elf64_Phdr	*find_cave_segment(void *file, Elf64_Ehdr *ehdr);
 Elf64_Shdr	*get_section_header(void *file, char *name);
-int		get_shstrtab_content(void *file, Elf64_Ehdr *ehdr, char **ptr);
-void	encrypt_text_section(void *file, uint32_t key);
+void		inject(void *file, Elf64_Ehdr *ehdr, Elf64_Phdr *phdr, uint32_t key);
+void		*ft_memcpy(void *dst, const void *src, size_t n);
+void		encrypt_text_section(void *file, uint32_t key);
+void		write_file(void *file, size_t fsize);
+int			get_shstrtab_content(void *file, Elf64_Ehdr *ehdr, char **ptr);
+int			get_file(const char *filepath, void **file, size_t *fsize);
+int			woody(char *file_name, void *file, size_t fsize);
+int			ft_strcmp(const char *s1, const char *s2);
+int			check_file(char *filepath);
+int			generate_key(void);

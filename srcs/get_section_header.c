@@ -14,7 +14,7 @@ Elf64_Shdr	*get_section_header(void *file, char *name)
 	for (int i = 0; i < ehdr->e_shnum; i++)
 	{
 		shdr = (Elf64_Shdr*)(file + ehdr->e_shoff + (i * sizeof(Elf64_Shdr)));
-		if (strcmp(shstrtab_content + shdr->sh_name, name) == 0)
+		if (ft_strcmp(shstrtab_content + shdr->sh_name, name) == 0)
 		{
 			return (shdr);
 		}
