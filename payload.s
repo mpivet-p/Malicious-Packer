@@ -22,18 +22,19 @@ mem_protect:
 	mov rdx, 7			; read, write, exec
 	syscall
 
+decrypt_setup:
 	mov rcx, "SIZE"
-	lea	r10, [rel key]
+	lea	r10, [rel key]	; loading relative address to the key
+	mov rdi, 4			; 4 = key length
 decrypt_loop:
 	dec rcx
 	mov bl, byte [r9 + rcx]
 
 	xor rdx, rdx
 	mov rax, rcx
-	mov rdi, 4			; 4 = key length
 	div rdi
 	mov al, byte [r10 + rdx]
-	xor bl, al
+	xor bl, al					; basically '^ key[i % 4]'
 
 	mov byte [r9 + rcx], bl
 	test rcx, rcx
